@@ -1,0 +1,107 @@
+#?prec: 16; # Precision
+#?epsilon: 1E-03;
+#?alpha: 30;
+
+
+################################
+###### Dados da Instância ######
+################################
+
+# ###### Descrição da Instância ######
+# Capacidade da Mochila: 47
+# Itens: 10
+# Peso dos Itens:  [ 5,  7,  6, 10, 8,  3,  4, 1,  7, 3]
+# Valor dos Itens: [15, 18, 13, 32, 9, 10, 11, 5, 14, 5]
+
+# ###### Resposta Correta ######
+# Itens selecionados:   Item 3, Item 5, Item 8, Item 9 e Item 10
+# Vetor item[n]:        [0, 0, 1, 0, 1, 0, 0, 1, 1, 1]
+
+
+################################
+###### Estrutura de Dados ######
+################################
+
+# Capacidade da mochila (cada slot tem peso 1)
+s = 3;
+
+# Quantidade de itens
+n = 2;
+
+# Quantidade de blocos no conjunto de itens (peso total).
+b = 5;
+
+# Vetor de itens 'n'
+item[n];
+
+# Correspondência: se o slot 's' da mochila é ocupado pelo bloco 'b'
+x[s][b];
+
+# Matriz item-bloco (Itens 'n' são compostos pelos blocos 'b')
+item_block[n][b] = {
+  (1,1) : 1,
+  (1,2) : 1,
+  (1,3) : 1,
+  (1,4) : 0,
+  (1,5) : 0,
+
+  (2,1) : 0,
+  (2,2) : 0,
+  (2,3) : 0,
+  (2,4) : 1,
+  (2,5) : 1
+};
+
+# Vetor de valor dos itens (NOTA: Soma dos valores precisa ser igual a -1)
+value[n] = {
+  (1) : -5,
+  (2) : -7
+};
+
+
+########################
+###### Restrições ######
+########################
+
+# Níveis de Penalidade
+LOW = 1;
+HIGH = 2;
+
+# Bias: Selecionar todos os blocos
+(int) select_all_blocks[LOW]:
+    forall{i = [1:s]}
+    forall{k = [1:b]}
+    x[i][k];
+
+# WTA: Se um bloco 'k' ocupa o slot 'i' então outro bloco 'l' não pode ocupar o mesmo slot 'i' 
+(int) one_block_per_slot[HIGH]:
+    forall{i = [1:s]}
+    forall{k = [1:b]}
+    forall{l = [1:b], l != k}
+    not(x[i][k] and x[i][l]);
+
+# WTA: Se um bloco 'k' ocupa o slot 'i' então o mesmo bloco 'k' não pode ocupar outro slot 'j'
+(int) one_slot_per_block[HIGH]: # WTA
+    forall{k = [1:b]}
+    forall{i = [1:s]}
+    forall{j = [1:s], j != i}
+    not(x[i][k] and x[j][k]);
+
+# Acoplamento: Se um bloco 'k' ocupa algum slot 'i' e é parte de um item 'm', então o item 'm' é escolhido
+(int) block_item_coupling[HIGH]:
+    forall{m = [1:n]}
+    forall{i = [1:s]}
+    forall{k = [1:b]}
+    (x[i][k] and item_block[m][k]) -> item[m];
+
+# Acoplamento: Se um item 'm' é escolhido e é composto por um algum bloco 'k', então o bloco 'k' tem que ser escolhido
+(int) item_block_coupling[LOW]:
+    forall{m = [1:n]}
+    forall{k = [1:b]}
+    forall{i = [1:s]}
+    (item[m] and item_block[m][k]) -> x[i][k];
+
+# Otimalidade (Maximizar soma do valor dos itens escolhidos)
+(opt) cost:
+    exists{i = [1:n]}
+    item[i] * value[i];
