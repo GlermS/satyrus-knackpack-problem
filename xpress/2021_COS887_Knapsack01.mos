@@ -1,0 +1,145 @@
+!@encoding CP1252
+model COS887_Knapsack01
+
+uses "mmxprs";			! Xpress Optimizer
+uses "mmsystem";		! System Functions
+
+! Parametros
+parameters
+
+	INSTANCE = 5		! ID da InstÃ¢ncia
+
+end-parameters
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!! VariÃ¡veis baseadas na InstÃ¢ncia !!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+declarations
+
+	_I : integer		! Numero de itens (depende da instancia)
+	_M : integer		! Capacidade da mochila (depende da instancia)
+	
+end-declarations
+
+! Capacidade da Mochila
+if INSTANCE >= 1 and INSTANCE <= 3 then
+	_M := 2
+elif INSTANCE >= 4 and INSTANCE <= 6 then
+	_M := 3
+else 
+	_M := 4
+end-if
+
+! Numero de itens
+if INSTANCE mod 3 = 1 then
+	_I := 2	
+elif INSTANCE mod 3 = 2 then
+	_I := 3
+else
+	_I := 4
+end-if
+
+! Declaração das Variáveis do Problema
+declarations
+
+	! Índices
+	I = 1.._I						! Iterador para os Itens (1.._I)
+
+	! Arrays
+	p 	: array(I) of integer		! Vetor de pesos dos itens.
+	v	: array(I) of integer		! Vetor de valores dos itens.
+
+	! Constantes
+	C 	= _M						! Capacidade da mochila
+
+	! Decision Variables
+	x	: array(I) of mpvar			! Vetor de variáveis de decisão (Se o item é levado ou não na mochila)
+
+end-declarations
+
+! Carrega os dados dos itens
+if INSTANCE mod 3 = 1 then
+	p :: [3, 2]			! Vetor de pesos para os itens
+	v :: [5, 7]			! Vetor de valores dos itens
+	
+elif INSTANCE mod 3 = 2 then
+	p :: [3, 2,  1]		! Vetor de pesos para os itens
+	v :: [5, 7, 11]		! Vetor de valores dos itens
+	
+else
+	p :: [3, 2,  1,  5]	! Vetor de pesos para os itens
+	v :: [5, 7, 11, 17]	! Vetor de valores dos itens
+	
+end-if
+
+
+! Função Objetivo
+Knapsack := sum(i in I) v(i) * x(i)
+
+! Restrições
+sum(i in I) p(i) * x(i) <= C
+
+! Domínio das Variáveis de Decisão
+forall(i in I) do
+	x(i) is_binary
+end-do
+
+! Run Model
+writeln("Begin running model")
+
+! Timer
+starttime := gettime
+
+! Optimize
+maximize(Knapsack)
+
+writeln("End running model")
+
+! Get problem status
+case getprobstat of
+	XPRS_OPT: status := "Ótimo Encontrado"
+	XPRS_UNF: status := "Interrompido"
+	XPRS_INF: status := "Inviável"
+	XPRS_UNB: status := "Ilimitado"
+	XPRS_OTH: status := "Falha"
+else
+	status := "Whoops!!! I don't know what's going on..."
+end-case
+
+! Print problem status
+writeln("\n")
+writeln("\nResultado da Otimização: ", status)
+writeln("\n")
+
+if (status = "Ótimo Encontrado") then
+
+	writeln("----------------------------------------------------------------------------------------------------")
+	writeln("                                        Resultado da Mochila                                        ")
+	writeln("----------------------------------------------------------------------------------------------------")
+	writeln("")
+	! Write results
+	writeln("Tempo de Execução: ",gettime - starttime," segundos")
+	writeln("")
+
+	knapsack_val    := sum(i in I) v(i) * getsol(x(i))
+	knapsack_weight := sum(i in I) p(i) * getsol(x(i))
+
+
+	writeln(" Valor dos Itens Carregados: ", knapsack_val)
+	writeln(" Peso ocupado: ", knapsack_weight, "/", C)
+	writeln("----------------------------------------------------------------------------------------------------")
+	writeln(" Item | É levado? | Peso | Valor | Densidade de Valor ")
+	
+	! Corpo da tabela
+	forall (i in I) do
+		if getsol(x(i)) > 0.001 then ! Epsilon
+			writeln(" ", strfmt(i, 4), " | ", "Sim      ", " | ", strfmt(p(i), 4), " | ", strfmt(v(i), 5), " | ", strfmt(v(i)/p(i), 5, 2))
+		else
+			writeln(" ", strfmt(i, 4), " | ", "Não      ", " | ", strfmt(p(i), 4), " | ", strfmt(v(i), 5), " | ", strfmt(v(i)/p(i), 5, 2))		
+		end-if
+	end-do
+	writeln("----------------------------------------------------------------------------------------------------")
+
+end-if
+
+end-model
